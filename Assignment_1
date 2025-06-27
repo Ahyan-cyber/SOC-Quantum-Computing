@@ -1,0 +1,171 @@
+# **Given**
+def word_to_binary(word):
+    binary = ''.join(format(ord(c), '08b') for c in word)
+    return binary
+# Remember for each letter in your word it will add 8 more bits so choose a relatively shorter word ~12 letters or less
+def binary_to_word(binary_str):
+    # Pad with zeros if length not multiple of 8
+    padded = binary_str.ljust((len(binary_str) + 7) // 8 * 8, '0')
+    return ''.join(chr(int(padded[i:i+8], 2)) for i in range(0, len(padded), 8))
+#!pip install qiskit
+#!pip install qiskit[visualization,aer]
+# **SuperDense COding**
+#Create the circuit for superdense coding (using 2 qubits and 2 classical bits) and check its validity using Statevector for all the 4 possible cases.
+from qiskit import QuantumRegister
+from qiskit import QuantumCircuit
+from qiskit.quantum_info import Statevector
+
+# we will create a function which will contain the circuit required to send
+
+def send_1(bits):
+  qc=QuantumCircuit(2)
+
+  # creation of the entangled pair
+  qc.h(0)
+  qc.cx(0, 1)
+
+  #making the four unique cases for encoding
+
+  if bits == '00':
+    pass
+  elif bits == '01':
+    qc.x(0)
+  elif bits == '10':
+    qc.z(0)
+  elif bits == '11':
+    qc.z(0)
+    qc.x(0)
+
+  # decoding with q_1 which we had and the recieved  q_0
+  qc.cx(0, 1)
+  qc.h(0)
+
+  return qc
+
+
+# checking using statevector
+
+
+
+qc = send_1("11")
+sv = Statevector.from_label('00').evolve(qc)
+sv.draw('latex')
+
+# here we expect that whatever bits we pass to the function, the same bits can be recoverd
+# We can make the above into a more sophisticated code with one function for the sender(encoding) and other for the receiver decoding, use global variables to pass quantum entaglment information
+from qiskit import QuantumCircuit
+from qiskit.quantum_info import Statevector
+
+# Global quantum state shared between sender and receiver
+global_state = None
+
+def create_entangled_pair():
+    qc = QuantumCircuit(2)
+    qc.h(0)
+    qc.cx(0, 1)
+    return Statevector.from_label('00').evolve(qc)
+
+def sender(bits):
+    global global_state
+
+    # Initialize if not already done
+    if global_state is None:
+        global_state = create_entangled_pair()
+
+    qc = QuantumCircuit(2)
+
+    if bits == '00':
+        pass
+    elif bits == '01':
+        qc.x(0)
+    elif bits == '10':
+        qc.z(0)
+    elif bits == '11':
+        qc.z(0)
+        qc.x(0)
+
+    global_state = global_state.evolve(qc)
+
+def receiver():
+    global global_state
+
+    qc = QuantumCircuit(2)
+    qc.cx(0, 1)
+    qc.h(0)
+
+    global_state = global_state.evolve(qc)
+    return global_state
+
+# Initialize the entangled pair
+global_state = create_entangled_pair()
+
+# Sender encodes their bits
+sender("11")
+
+# Receiver decodes the state
+final_state = receiver()
+
+# Display the final state
+final_state.draw('latex')
+#Now let's dig deeper and try to send the message "hello", we will use the function send_1
+from qiskit import QuantumCircuit
+from qiskit.quantum_info import Statevector
+import numpy as np
+
+def word_to_binary(word):
+    binary = ''.join(format(ord(c), '08b') for c in word)
+    return binary
+
+
+def binary_to_word(binary_str):
+    # Pad with zeros if not divisible by 8
+    padded = binary_str.ljust((len(binary_str) + 7) // 8 * 8, '0')
+    return ''.join(chr(int(padded[i:i+8], 2)) for i in range(0, len(padded), 8))
+
+
+def send_1(bits):
+    qc = QuantumCircuit(2)
+
+
+    qc.h(0)
+    qc.cx(0, 1)
+    if bits == '00':
+        pass
+    elif bits == '01':
+        qc.x(0)
+    elif bits == '10':
+        qc.z(0)
+    elif bits == '11':
+        qc.z(0)
+        qc.x(0)
+    qc.cx(0, 1)
+    qc.h(0)
+
+    return qc
+
+
+# decoding fuction using sv.data
+def decode_statevector(sv):
+    vec = sv.data
+    for i, amp in enumerate(vec):
+        if abs(amp) > 1e-6:
+            return format(i, '02b')[::-1]  # reverse to match q_0 q_1, as was told in the tutorial
+
+
+message = "hello"
+bits_set = word_to_binary(message)
+bits = [bits_set[i:i+2] for i in range(0, len(bits_set), 2)]
+
+received_bits = []
+
+for b in bits:
+    qc = send_1(b)
+    sv = Statevector.from_label('00').evolve(qc)
+    decoded = decode_statevector(sv)
+    received_bits.append(decoded)
+
+final_binary = ''.join(received_bits)
+recovered_message = binary_to_word(final_binary)
+
+print("sent message: ", message)
+print("recieved message:", recovered_message)
